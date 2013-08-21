@@ -5,6 +5,7 @@ Requires the following boxen modules:
 Supports:
 
 * git
+* mercurial
 
 ## Usage
 
