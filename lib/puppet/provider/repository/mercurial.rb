@@ -3,21 +3,18 @@ require 'puppet/util/errors'
 require 'puppet/util/execution'
 require 'shellwords'
 
-Puppet::Type.type(:repository).provide :git do
-
-  defaultfor :undefinedfact => :undef
-
+Puppet::Type.type(:repository).provide :mercurial do
   include Puppet::Util::Execution
   include Puppet::Util::Errors
 
-  optional_commands :git => 'git'
+  optional_commands :mercurial => 'hg'
 
   def self.default_protocol
     'https'
   end
 
   def query
-    h = { :name => @resource[:name], :provider => :git }
+    h = { :name => @resource[:name], :provider => :mercurial }
 
     if cloned?
       if [:present, :absent].member? @resource[:ensure]
@@ -37,7 +34,7 @@ Puppet::Type.type(:repository).provide :git do
 
   def create
     command = [
-      command(:git),
+      command(:mercurial),
       "clone",
       friendly_config,
       friendly_extra,
@@ -52,14 +49,14 @@ Puppet::Type.type(:repository).provide :git do
     create unless cloned?
 
     Dir.chdir @resource[:path] do
-      status = execute [command(:git), "status", "--porcelain"], command_opts
+      status = execute [command(:mercurial), "status"], command_opts
 
       if status.empty?
-        execute [command(:git), "reset", "--hard", target_revision], command_opts
+        execute [command(:mercurial), "update", "-C", target_revision], command_opts
       else
         if @resource[:force]
           Puppet.warning("Repository[#{@resource[:name]}] tree is dirty and force is true: doing hard reset!")
-          execute [command(:git), "reset", "--hard", target_revision], command_opts
+          execute [command(:mercurial), "update", "-C", target_revision], command_opts
         else
           fail("Repository[#{@resource[:name]}] tree is dirty and force is false: cannot sync resource!")
         end
@@ -73,7 +70,7 @@ Puppet::Type.type(:repository).provide :git do
 
   def expand_source(source)
     if source =~ /\A[^@\/\s]+\/[^\/\s]+\z/
-      "#{@resource[:protocol]}://github.com/#{source}"
+      "#{@resource[:protocol]}://bitbucket.com/#{source}"
     else
       source
     end
@@ -124,28 +121,29 @@ Puppet::Type.type(:repository).provide :git do
   def current_revision
     @current_revision ||= Dir.chdir @resource[:path] do
       execute([
-        command(:git), "rev-parse", "HEAD"
-      ], command_opts).chomp
+               command(:mercurial), "parents",
+               "--template", "{node}"
+      ], command_opts)
     end
   end
 
   def target_revision
     @target_revision ||= Dir.chdir @resource[:path] do
       execute([
-        command(:git), "rev-list", "--max-count=1", @resource[:ensure]
+        command(:mercurial), "log", "--template", "{node}", "-r", @resource[:ensure]
       ], command_opts).chomp
     end
   end
 
   def cloned?
     File.directory?(@resource[:path]) &&
-      File.directory?("#{@resource[:path]}/.git")
+      File.directory?("#{@resource[:path]}/.hg")
   end
 
   def correct_revision?
     Dir.chdir @resource[:path] do
       execute [
-        command(:git), "fetch", "-q", "origin"
+        command(:mercurial), "pull",
       ], command_opts
 
       current_revision == target_revision
