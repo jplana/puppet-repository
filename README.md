@@ -19,3 +19,16 @@ repository {
     provider => 'git',
 }
 ```
+
+## Caveats
+
+Default boxen will set up some defaults for git that mercurial won't like,
+to override them you can use:
+
+```puppet
+Repository <| provider == 'mercurial' |> {
+  extra    => undef,
+  config   => undef,
+  require  => undef,
+}
+```
