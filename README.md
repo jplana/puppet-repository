@@ -16,7 +16,11 @@ repository {
   'my emacs config':
     source   => 'git://github.com/wfarr/.emacs.d.git',
     path     => '/etc/emacs.d',
-    provider => 'git',
+    provider => 'git';
+  'mercurial source':
+    source   => 'http://selenic.com/hg'
+    provider => 'mercurial',
+    path     => '/path/to/code';
 }
 ```
 
